@@ -1,0 +1,55 @@
+# .github/workflows/full-pipeline.yml
+name: TechPakistan Full CI/CD Pipeline
+ 
+on:
+ push:
+   branches: [ main, staging, develop ]
+ pull_request:
+   branches: [ main, staging ]
+ 
+jobs:
+ # ─── CI: Sab branches par chalega ────────────────────
+ ci:
+   name: CI Tests
+   runs-on: ubuntu-latest
+   steps:
+     - uses: actions/checkout@v3
+     - name: HTML Check
+       run: |
+         test -f index.html || exit 1
+         echo "✅ HTML file exists"
+     - name: File structure check
+       run: |
+         test -f src/css/style.css || exit 1
+         test -f src/js/main.js || exit 1
+         echo "✅ All files present"
+ 
+ # ─── Deploy to Staging (staging branch par) ──────────
+ deploy-staging:
+   name: Staging Deploy
+   runs-on: ubuntu-latest
+   needs: ci
+   if: github.ref == 'refs/heads/staging'
+   steps:
+     - uses: actions/checkout@v3
+     - name: Staging par deploy
+       run: echo "🔄 Deploying to STAGING server..."
+       # Yahan staging server ki SSH commands aayengi
+ 
+ # ─── Deploy to Production (main branch par) ──────────
+ deploy-production:
+   name: Production Deploy
+   runs-on: ubuntu-latest
+   needs: ci
+   if: github.ref == 'refs/heads/main'
+   steps:
+     - uses: actions/checkout@v3
+     - name: SSH Key setup
+       run: |
+         mkdir -p ~/.ssh
+         echo "${{ secrets.DEPLOY_KEY }}" > ~/.ssh/deploy_key
+         chmod 600 ~/.ssh/deploy_key
+     - name: Production par deploy
+       run: |
+         scp -i ~/.ssh/deploy_key -r index.html src/             ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:${{ secrets.DEPLOY_PATH }}/
+         echo "✅ PRODUCTION deployed!"
